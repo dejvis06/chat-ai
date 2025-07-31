@@ -1,7 +1,6 @@
-package com.example;
+package com.ai;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
