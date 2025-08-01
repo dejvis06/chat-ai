@@ -27,9 +27,11 @@ public class MockChatController {
                 //  Send tokens one by one (simulating AI streaming)
                 for (String token : tokens) {
                     emitter.send(token);
-                    Thread.sleep(500); // simulate delay
                 }
 
+                emitter.send(SseEmitter.event()
+                        .name("end")
+                        .data("done"));
                 emitter.complete(); //  Mark SSE as done
             } catch (Exception e) {
                 emitter.completeWithError(e);
