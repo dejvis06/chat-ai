@@ -1,3 +1,4 @@
+/*
 package com.ai.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
@@ -27,9 +28,11 @@ public class ChatController {
         this.vectorStore = vectorStore;
     }
 
-    /**
+    */
+/**
      * Streams AI responses to the client using Server-Sent Events (SSE).
-     */
+     *//*
+
     @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> streamChat(@RequestParam String message) {
         return defaultSystemChatClient
@@ -67,3 +70,4 @@ public class ChatController {
     }
 
 }
+*/

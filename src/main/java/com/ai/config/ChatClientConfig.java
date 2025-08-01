@@ -1,3 +1,4 @@
+/*
 package com.ai.config;
 
 import org.springframework.ai.chat.client.ChatClient;
@@ -9,18 +10,20 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.Scanner;
 
-@Configuration
+//@Configuration
 public class ChatClientConfig {
 
     public static final String SYSTEM_PROMPT = "You are a friendly chat bot that answers question in the voice of a Pirate";
     public static final String DEFAULT_PROMPT = "Tell me the names of 5 movies whose soundtrack was composed by {composer}";
 
-    /**
+    */
+/**
      * Creates a ChatClient bean preconfigured with the system prompt.
      *
      * @param chatModel the OpenAI chat model to use
      * @return a ChatClient instance with a default system prompt
-     */
+     *//*
+
     @Bean
     public ChatClient defaultSystemChatClient(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel)
@@ -28,14 +31,16 @@ public class ChatClientConfig {
                 .build();
     }
 
-    /**
+    */
+/**
      * ChatClient configured for dynamic prompting.
      * This variant doesn’t set a fixed system prompt —
      * instead, prompts are dynamically built with parameters at runtime.
      *
      * @param chatModel the OpenAI chat model to use
      * @return a ChatClient instance with a default user prompt
-     */
+     *//*
+
     @Bean
     public ChatClient defaultUserChatClient(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel)
@@ -77,4 +82,4 @@ public class ChatClientConfig {
             scanner.close();
         };
     }
-}
+}*/
