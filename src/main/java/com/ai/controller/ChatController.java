@@ -1,46 +1,46 @@
-/*
 package com.ai.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 @RestController
+@RequestMapping("/chat")
 public class ChatController {
 
     private final ChatClient defaultSystemChatClient;
     private final ChatClient defaultUserChatClient;
-    private final ChatMemory chatMemory;
-    private final VectorStore vectorStore;
 
-    public ChatController(ChatClient defaultSystemChatClient, ChatClient defaultUserChatClient, ChatMemory chatMemory, VectorStore vectorStore) {
+    public ChatController(ChatClient defaultSystemChatClient, ChatClient defaultUserChatClient) {
         this.defaultSystemChatClient = defaultSystemChatClient;
         this.defaultUserChatClient = defaultUserChatClient;
-        this.chatMemory = chatMemory;
-        this.vectorStore = vectorStore;
     }
 
-    */
-/**
+    /**
      * Streams AI responses to the client using Server-Sent Events (SSE).
-     *//*
-
-    @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+     */
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> streamChat(@RequestParam String message) {
         return defaultSystemChatClient
                 .prompt()
                 .user(message)
                 .stream()
                 .content()
-                .map(chunk -> ServerSentEvent.builder(chunk).build());
+                .map(chunk -> {
+                    String jsonChunk = "{\"text\": \"" + chunk.replace("\"", "\\\"") + "\"}";
+                    return ServerSentEvent.builder(jsonChunk).build();
+                })
+                // after streaming finishes, emit an 'end' event
+                .concatWith(Flux.just(
+                        ServerSentEvent.<String>builder()
+                                .event("end")
+                                .build()
+                ));
     }
 
     @GetMapping("/movies/by-composer")
@@ -52,7 +52,10 @@ public class ChatController {
                 .map(chunk -> ServerSentEvent.builder(chunk).build());
     }
 
-    @GetMapping("/ask")
+    // private final ChatMemory chatMemory;
+    // private final VectorStore vectorStore;
+
+   /* @GetMapping("/ask")
     public String ask(@RequestParam String userText) {
 
         return defaultSystemChatClient
@@ -67,7 +70,5 @@ public class ChatController {
                 .user(userText)
                 .call()
                 .content();
-    }
-
+    }*/
 }
-*/
