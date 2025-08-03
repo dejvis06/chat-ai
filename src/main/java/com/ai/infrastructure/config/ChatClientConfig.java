@@ -8,7 +8,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ChatClientConfig {
 
-    public static final String SYSTEM_PROMPT = "You are a helpful assistant.";
+    public static final String HELPFUL_ASSISTANT_PROMPT = "You are a helpful assistant.";
+    public static final String NAME_GENERATION_PROMPT = "Generate a short, creative chat name based on the user prompt. Respond with the name only, no explanations or extra text.";
 
     /**
      * Creates a ChatClient bean preconfigured with the system prompt.
@@ -19,7 +20,14 @@ public class ChatClientConfig {
     @Bean
     public ChatClient openAiChatClient(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel)
-                .defaultSystem(SYSTEM_PROMPT)
+                .defaultSystem(HELPFUL_ASSISTANT_PROMPT)
+                .build();
+    }
+
+    @Bean
+    public ChatClient chatNameGeneratorClient(OpenAiChatModel chatModel) {
+        return ChatClient.builder(chatModel)
+                .defaultSystem(NAME_GENERATION_PROMPT)
                 .build();
     }
 }
