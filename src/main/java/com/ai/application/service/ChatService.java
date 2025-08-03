@@ -27,7 +27,6 @@ public class ChatService {
     private final ChatClient openAiChatClient;
     private final ChatClient chatNameGeneratorClient;
     private final ChatMemory chatMemory;
-    private final JdbcChatMemoryRepository jdbcChatMemoryRepository;
 
     private final ChatRepository chatRepository;
 
@@ -37,13 +36,11 @@ public class ChatService {
             ChatClient openAiChatClient,
             ChatClient chatNameGeneratorClient,
             ChatMemory chatMemory,
-            JdbcChatMemoryRepository jdbcChatMemoryRepository,
             ChatRepository chatRepository
     ) {
         this.openAiChatClient = openAiChatClient;
         this.chatNameGeneratorClient = chatNameGeneratorClient;
         this.chatMemory = chatMemory;
-        this.jdbcChatMemoryRepository = jdbcChatMemoryRepository;
         this.chatRepository = chatRepository;
     }
 
