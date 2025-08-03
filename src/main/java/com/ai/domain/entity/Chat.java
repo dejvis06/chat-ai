@@ -10,12 +10,6 @@ public class Chat {
 
     public Chat() {}
 
-    public Chat(String id, String name) {
-        this.id = id;
-        this.name = name;
-        this.createdAt = Instant.now();
-    }
-
     public Chat(String name) {
         this.name = name;
         this.createdAt = Instant.now();

@@ -3,26 +3,21 @@ package com.ai.application.service;
 import com.ai.application.dto.ChatDto;
 import com.ai.application.dto.ChatMessageDto;
 import com.ai.domain.entity.Chat;
+import com.ai.infrastructure.repository.ChatRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class ChatService {
@@ -34,7 +29,7 @@ public class ChatService {
     private final ChatMemory chatMemory;
     private final JdbcChatMemoryRepository jdbcChatMemoryRepository;
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ChatRepository chatRepository;
 
     public static final String END_STREAM = "END_STREAM";
 
@@ -43,58 +38,34 @@ public class ChatService {
             ChatClient chatNameGeneratorClient,
             ChatMemory chatMemory,
             JdbcChatMemoryRepository jdbcChatMemoryRepository,
-            JdbcTemplate jdbcTemplate
+            ChatRepository chatRepository
     ) {
         this.openAiChatClient = openAiChatClient;
         this.chatNameGeneratorClient = chatNameGeneratorClient;
         this.chatMemory = chatMemory;
         this.jdbcChatMemoryRepository = jdbcChatMemoryRepository;
-        this.jdbcTemplate = jdbcTemplate;
+        this.chatRepository = chatRepository;
     }
 
     /**
-     * Creates and persists a new chat record based on the user’s first message,
-     * initializes chat memory, and returns the created chat’s metadata.
+     * Creates and persists a new Chat based on the provided user message.
      *
-     * <p>Steps performed:
-     * <ul>
-     *   <li>Generates a chat name using the {@code chatNameGeneratorClient} from the user’s message.</li>
-     *   <li>Inserts the chat (name and creation timestamp) into the database and retrieves the generated ID.</li>
-     *   <li>Adds the user’s first message to the {@code chatMemory} for conversation continuity.</li>
-     *   <li>Returns a {@link ChatDto} with chat metadata and no messages yet.</li>
-     * </ul>
-     *
-     * @param userMessage the first message sent by the user to start the chat
-     * @return a {@link ChatDto} containing the generated chat ID, chat name, creation timestamp, and empty message list
+     * @param userMessage the initial message from the user, used to generate a chat name
+     * @return a {@link ChatDto} containing the chat’s ID, generated name, and no messages
      */
     public ChatDto save(String userMessage) {
+        log.info("Starting chat creation for user message: {}", userMessage);
+
         String chatName = chatNameGeneratorClient.prompt()
                 .user(userMessage)
                 .call()
                 .content();
+        log.debug("Generated chat name from client: {}", chatName);
 
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        Instant createdAt = Instant.now();
+        Chat chat = chatRepository.save(chatName);
+        log.info("Chat successfully saved with ID: {}", chat.getId());
 
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO chat (name, created_at) VALUES (?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-            );
-            ps.setString(1, chatName);
-            ps.setTimestamp(2, Timestamp.from(createdAt));
-            return ps;
-        }, keyHolder);
-
-        // Get the auto-generated id
-        String chatId = keyHolder.getKey().toString();
-
-        return new ChatDto(
-                chatId,
-                chatName,
-                createdAt,
-                null
-        );
+        return ChatDto.from(chat, null);
     }
 
     /**
@@ -164,6 +135,28 @@ public class ChatService {
                 .stream()
                 .map(ChatMessageDto::from)
                 .toList();
+    }
+
+    /**
+     * Retrieves a paginated list of messages for the specified chat.
+     *
+     * @param chatId the unique identifier of the chat (conversation ID)
+     * @param page   the zero-based page index (0 returns the first page)
+     * @param size   the maximum number of messages to return per page
+     * @return a list of {@link ChatMessageDto} objects representing the requested messages
+     */
+    public List<ChatMessageDto> findAllMessagesByChatId(String chatId, int page, int size) {
+        log.info("Fetching messages for chatId={} (page={}, size={})", chatId, page, size);
+
+        List<Message> messages = chatRepository.findAllMessagesByChatId(chatId, page, size);
+        log.debug("Retrieved {} messages from repository for chatId={}", messages.size(), chatId);
+
+        List<ChatMessageDto> result = messages.stream()
+                .map(ChatMessageDto::from)
+                .toList();
+
+        log.info("Mapped {} messages to ChatMessageDto for chatId={}", result.size(), chatId);
+        return result;
     }
 }
 
