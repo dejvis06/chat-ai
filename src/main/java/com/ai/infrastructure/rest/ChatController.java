@@ -59,6 +59,19 @@ public class ChatController {
     }
 
     /**
+     * Retrieves all chats.
+     *
+     * @return a {@link ResponseEntity} containing a list of {@link ChatDto} objects
+     */
+    @GetMapping
+    public ResponseEntity<List<ChatDto>> findAllChats() {
+        log.info("Fetching all chats");
+
+        List<ChatDto> chats = chatService.findAll();
+        return ResponseEntity.ok(chats);
+    }
+
+    /**
      * Retrieves paginated messages for a specific chat, with pagination support.
      *
      * @param page   the zero-based page index (defaults to 0)

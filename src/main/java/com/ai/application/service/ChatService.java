@@ -11,6 +11,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -129,6 +130,22 @@ public class ChatService {
         return chatMemory.get(chatId)
                 .stream()
                 .map(ChatMessageDto::from)
+                .toList();
+    }
+
+    /**
+     * Retrieves all chats.
+     *
+     * @return a {@link ResponseEntity} containing a list of {@link ChatDto} objects
+     */
+    public List<ChatDto> findAll() {
+        log.info("Fetching all chats from repository");
+
+        List<Chat> chats = chatRepository.findAll();
+        log.debug("Retrieved {} chats from database", chats.size());
+
+        return chats.stream()
+                .map(chat -> ChatDto.from(chat, null))
                 .toList();
     }
 

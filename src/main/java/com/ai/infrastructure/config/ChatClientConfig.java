@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 public class ChatClientConfig {
 
     public static final String HELPFUL_ASSISTANT_PROMPT = "You are a helpful assistant.";
-    public static final String NAME_GENERATION_PROMPT = "Generate a short, creative chat name based on the user prompt. Respond with the name only, no explanations or extra text.";
+    public static final String NAME_GENERATION_PROMPT = "Generate a short, descriptive chat name based on the user prompt. Respond with the name only, no explanations or extra text.";
 
     /**
      * Creates a ChatClient bean preconfigured with the system prompt.
