@@ -11,7 +11,6 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
-import java.awt.print.Pageable;
 import java.util.List;
 
 @RestController
