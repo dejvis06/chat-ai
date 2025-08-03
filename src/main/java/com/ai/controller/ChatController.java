@@ -1,7 +1,6 @@
 package com.ai.controller;
 
-import com.ai.application.ChatService;
-import com.ai.application.OpenAiChatService;
+import com.ai.application.service.ChatService;
 import com.ai.application.dto.ChatMessageDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

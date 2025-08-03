@@ -1,4 +1,4 @@
-package com.ai.application;
+package com.ai.application.service;
 
 import com.ai.application.dto.ChatMessageDto;
 import org.slf4j.Logger;
