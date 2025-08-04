@@ -4,6 +4,8 @@ import com.ai.application.dto.ChatDto;
 import com.ai.application.dto.ChatMessageDto;
 import com.ai.domain.entity.Chat;
 import com.ai.infrastructure.repository.ChatRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ChatService {
@@ -117,7 +120,12 @@ public class ChatService {
     }
 
     private String encodeToJson(String message) {
-        return "{\"text\": \"" + message.replace("\"", "\\\"") + "\"}";
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            return objectMapper.writeValueAsString(Map.of("text", message));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to encode JSON", e);
+        }
     }
 
     /**
