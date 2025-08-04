@@ -77,7 +77,7 @@ public class ChatRepository {
         SELECT content, type, "timestamp"
         FROM SPRING_AI_CHAT_MEMORY
         WHERE conversation_id = ?
-        ORDER BY "timestamp" ASC
+        ORDER BY "timestamp" DESC
         LIMIT ? OFFSET ?
         """;
 
