@@ -5,14 +5,13 @@ spring:
     chat:
       memory:
         repository:
-          jdbc:
-            schema: classpath:/schema/schema-postgres.sql
+          cassandra:
+            keyspace: spring
+            initialize-schema: false
 
-  datasource:
-    url: jdbc:h2:mem:chatdb;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-    h2:
-      console:
-        enabled: true
+  cassandra:
+      contactPoints: 127.0.0.1
+      port: 9042
+      localDatacenter: datacenter1
+      username: cassandra
+      password: cassandra

@@ -3,6 +3,8 @@ package com.ai.infrastructure.rest;
 import com.ai.application.dto.ChatDto;
 import com.ai.application.dto.ChatMessageDto;
 import com.ai.application.service.ChatService;
+import com.ai.domain.model.pagination.ChatPage;
+import com.ai.domain.model.pagination.PageMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -74,20 +76,16 @@ public class ChatController {
     /**
      * Retrieves paginated messages for a specific chat, with pagination support.
      *
-     * @param page   the zero-based page index (defaults to 0)
-     * @param size   the number of messages to return per page (defaults to 10)
-     * @param chatId the unique identifier of the chat whose messages should be retrieved
-     * @return a {@link ResponseEntity} containing a list of {@link ChatMessageDto} for the specified chat
+     * @param pageMeta page metadata
+     * @param chatId   the unique identifier of the chat whose messages should be retrieved
+     * @return a {@link ResponseEntity} containing an object {@link ChatPage} representing the requested messages and the next available page
      */
     @GetMapping("/{chatId}/messages")
-    public ResponseEntity<List<ChatMessageDto>> findAllMessagesByChatId(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+    public ResponseEntity<ChatPage> findAllMessagesByChatId(
+            @RequestBody PageMeta pageMeta,
             @PathVariable String chatId
     ) {
-        log.info("Fetching chats - page: {}, size: {}", page, size);
-
-        List<ChatMessageDto> chats = chatService.findAllMessagesByChatId(chatId, page, size);
-        return ResponseEntity.ok(chats);
+        log.info("Fetching chats - page meta: {}", pageMeta);
+        return ResponseEntity.ok(chatService.findAllMessagesByChatId(chatId, pageMeta));
     }
 }

@@ -3,15 +3,15 @@ package com.ai.application.service;
 import com.ai.application.dto.ChatDto;
 import com.ai.application.dto.ChatMessageDto;
 import com.ai.domain.entity.Chat;
+import com.ai.domain.model.pagination.ChatPage;
+import com.ai.domain.model.pagination.PageMeta;
 import com.ai.infrastructure.repository.ChatRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -28,21 +28,18 @@ public class ChatService {
 
     private final ChatClient openAiChatClient;
     private final ChatClient chatNameGeneratorClient;
-    private final ChatMemory chatMemory;
 
-    private final ChatRepository chatRepository;
+    private final ChatRepository<Chat, Object> chatRepository;
 
     public static final String END_STREAM = "END_STREAM";
 
     public ChatService(
             ChatClient openAiChatClient,
             ChatClient chatNameGeneratorClient,
-            ChatMemory chatMemory,
             ChatRepository chatRepository
     ) {
         this.openAiChatClient = openAiChatClient;
         this.chatNameGeneratorClient = chatNameGeneratorClient;
-        this.chatMemory = chatMemory;
         this.chatRepository = chatRepository;
     }
 
@@ -83,14 +80,14 @@ public class ChatService {
     public Flux<ServerSentEvent<String>> stream(String chatId, String userMessage) {
         log.info("Received user message: {}", userMessage);
 
-        chatMemory.add(chatId, new UserMessage(userMessage));
+        chatRepository.add(chatId, new UserMessage(userMessage));
         log.info("User message added to chat memory for chatId={}", chatId);
 
         StringBuilder assistantResponse = new StringBuilder();
 
         return openAiChatClient
                 .prompt()
-                .messages(chatMemory.get(chatId))
+                .messages(chatRepository.get(chatId))
                 .user(userMessage)
                 .stream()
                 .content()
@@ -108,7 +105,7 @@ public class ChatService {
                     log.info("Streaming complete");
 
                     // Add full assistant response
-                    chatMemory.add(chatId, new AssistantMessage(assistantResponse.toString()));
+                    chatRepository.add(chatId, new AssistantMessage(assistantResponse.toString()));
                     log.info("Assistant response saved to chat memory for chatId={}", chatId);
 
                     return Flux.just(
@@ -135,7 +132,7 @@ public class ChatService {
      * @return a list of chat messages (as DTOs) exchanged in this chat
      */
     public List<ChatMessageDto> getChatHistory(String chatId) {
-        return chatMemory.get(chatId)
+        return chatRepository.get(chatId)
                 .stream()
                 .map(ChatMessageDto::from)
                 .toList();
@@ -160,23 +157,17 @@ public class ChatService {
     /**
      * Retrieves a paginated list of messages for the specified chat.
      *
-     * @param chatId the unique identifier of the chat (conversation ID)
-     * @param page   the zero-based page index (0 returns the first page)
-     * @param size   the maximum number of messages to return per page
-     * @return a list of {@link ChatMessageDto} objects representing the requested messages
+     * @param chatId   the unique identifier of the chat (conversation ID)
+     * @param pageMeta page metadata
+     * @return an object of {@link ChatPage} representing the requested messages and the next available page
      */
-    public List<ChatMessageDto> findAllMessagesByChatId(String chatId, int page, int size) {
-        log.info("Fetching messages for chatId={} (page={}, size={})", chatId, page, size);
+    public ChatPage findAllMessagesByChatId(String chatId, PageMeta pageMeta) {
+        log.info("Fetching messages for chatId={} and page metadata={}", chatId, pageMeta);
 
-        List<Message> messages = chatRepository.findAllMessagesByChatId(chatId, page, size);
-        log.debug("Retrieved {} messages from repository for chatId={}", messages.size(), chatId);
+        ChatPage chatPage = chatRepository.findAll(chatId, pageMeta);
+        log.debug("Retrieved {} messages from repository for chatId={}", chatPage.messages().size(), chatId);
 
-        List<ChatMessageDto> result = messages.stream()
-                .map(ChatMessageDto::from)
-                .toList();
-
-        log.info("Mapped {} messages to ChatMessageDto for chatId={}", result.size(), chatId);
-        return result;
+        return chatPage;
     }
 }
 

@@ -46,9 +46,8 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>runtime</scope>
+			<groupId>org.springframework.data</groupId>
+			<artifactId>spring-data-cassandra</artifactId>
 		</dependency>
 
 		<!-- AI -->
@@ -62,11 +61,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
-			<artifactId>spring-ai-starter-model-chat-memory-repository-jdbc</artifactId>
+			<artifactId>spring-ai-starter-model-chat-memory-repository-cassandra</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
-			<artifactId>spring-ai-starter-model-chat-memory-repository-cassandra</artifactId>
+			<artifactId>spring-ai-starter-model-chat-memory-repository-jdbc</artifactId>
 		</dependency>
 	</dependencies>
 

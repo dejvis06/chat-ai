@@ -1,0 +1,16 @@
+services:
+  cassandra:
+    image: bitnami/cassandra:5.0.5
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_DATACENTER: datacenter1
+      CASSANDRA_CLUSTER_NAME: chat-memory-cluster
+      CASSANDRA_USER: cassandra
+      CASSANDRA_PASSWORD: cassandra
+      CASSANDRA_ENABLE_RPC: "yes"
+      CASSANDRA_NUM_TOKENS: "128"
+      CASSANDRA_SEEDS: cassandra
+    volumes:
+      - ./cql-init:/docker-entrypoint-initdb.d

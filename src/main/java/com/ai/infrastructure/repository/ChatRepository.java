@@ -1,99 +1,47 @@
 package com.ai.infrastructure.repository;
 
-import com.ai.domain.entity.Chat;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.sql.Timestamp;
 import java.util.List;
 
-@Repository
-public class ChatRepository {
+public abstract class ChatRepository<T, ID> implements ChatMemory, PagingRepository<ID> {
 
-    private final JdbcTemplate jdbcTemplate;
+    private static final int DEFAULT_MAX_MESSAGES = 20;
+    private final ChatMemoryRepository chatMemoryRepository;
+    private final int maxMessages;
 
-    public ChatRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    protected ChatRepository(ChatMemoryRepository chatMemoryRepository, int maxMessages) {
+        Assert.notNull(chatMemoryRepository, "chatMemoryRepository cannot be null");
+        Assert.isTrue(maxMessages > 0, "maxMessages must be greater than 0");
+        this.chatMemoryRepository = chatMemoryRepository;
+        this.maxMessages = maxMessages;
     }
 
-    /**
-     * Persists a new Chat entity to the database.
-     *
-     * @param chatName the name to assign to the new chat
-     * @return a {@link Chat} instance with its database-generated ID populated
-     */
-    public Chat save(String chatName) {
-        Chat chat = new Chat(chatName);
+    public abstract T save(String chatName);
 
-        KeyHolder keyHolder = new GeneratedKeyHolder();
+    public abstract List<T> findAll();
 
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO chat (name, created_at) VALUES (?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-            );
-            ps.setString(1, chatName);
-            ps.setTimestamp(2, Timestamp.from(chat.getCreatedAt()));
-            return ps;
-        }, keyHolder);
+    @Override
+    public void add(String conversationId, List<Message> messages) {
+        Assert.hasText(conversationId, "conversationId cannot be null or empty");
+        Assert.notNull(messages, "messages cannot be null");
+        Assert.noNullElements(messages, "messages cannot contain null elements");
 
-        chat.setId(keyHolder.getKey().toString());
-        return chat;
+        this.chatMemoryRepository.saveAll(conversationId, messages);
     }
 
-    /**
-     * Retrieves all chats from the database.
-     *
-     * @return a {@link List} containing every {@link Chat} stored in the database
-     */
-    public List<Chat> findAll() {
-        String sql = "SELECT id, name, created_at FROM chat ORDER BY created_at DESC";
+    public abstract List<Message> getMaxMessages(String conversationId);
 
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
-            Chat chat = new Chat();
-            chat.setId(rs.getString("id"));
-            chat.setName(rs.getString("name"));
-            chat.setCreatedAt(rs.getTimestamp("created_at").toInstant());
-            return chat;
-        });
+    public List<Message> get(String conversationId) {
+        Assert.hasText(conversationId, "conversationId cannot be null or empty");
+        return this.chatMemoryRepository.findByConversationId(conversationId);
     }
 
-    /**
-     * Retrieves a paginated list of chat messages for a given conversation ID.
-     *
-     * @param chatId the {@code conversation_id} whose messages should be fetched
-     * @param page   the zero‑based page index (0 means start at the first message)
-     * @param size   the maximum number of messages to return for this page
-     * @return a {@link java.util.List} of {@link org.springframework.ai.chat.messages.Message}
-     *         instances representing the conversation’s messages
-     */
-    public List<Message> findAllMessagesByChatId(String chatId, int page, int size) {
-        String sql = """
-        SELECT content, type, "timestamp"
-        FROM SPRING_AI_CHAT_MEMORY
-        WHERE conversation_id = ?
-        ORDER BY "timestamp" DESC
-        LIMIT ? OFFSET ?
-        """;
-
-        int offset = page * size;
-
-        return jdbcTemplate.query(sql, new Object[]{chatId, size, offset}, (rs, rowNum) -> {
-            String type = rs.getString("type");
-            String content = rs.getString("content");
-
-            // Map DB type to the correct Message implementation
-            return switch (type) {
-                case "USER" -> new org.springframework.ai.chat.messages.UserMessage(content);
-                case "ASSISTANT" -> new org.springframework.ai.chat.messages.AssistantMessage(content);
-                default -> throw new IllegalArgumentException("Unknown message type: " + type);
-            };
-        });
+    public void clear(String conversationId) {
+        Assert.hasText(conversationId, "conversationId cannot be null or empty");
+        this.chatMemoryRepository.deleteByConversationId(conversationId);
     }
-
 }

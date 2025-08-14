@@ -1,16 +1,15 @@
 package com.ai.infrastructure.config;
 
+import com.ai.domain.entity.NoSqlChat;
+import com.ai.infrastructure.repository.CassandraChatRepository;
+import com.ai.infrastructure.repository.ChatRepository;
+import com.datastax.oss.driver.api.core.CqlSession;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
-import org.springframework.ai.chat.memory.repository.cassandra.CassandraChatMemoryRepository;
-import org.springframework.ai.chat.memory.repository.cassandra.CassandraChatMemoryRepositoryConfig;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
+import org.springframework.data.cassandra.core.cql.CqlTemplate;
 
 @Configuration
 public class ChatClientConfig {
@@ -25,7 +24,7 @@ public class ChatClientConfig {
      * @return a ChatClient instance with a default system prompt
      */
     @Bean
-    public ChatClient openAiChatClient(OpenAiChatModel chatModel) {
+    ChatClient openAiChatClient(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel)
                 .defaultSystem(HELPFUL_ASSISTANT_PROMPT)
                 .build();
@@ -38,41 +37,31 @@ public class ChatClientConfig {
      * @return a ChatClient instance with a chat-name generation system prompt
      */
     @Bean
-    public ChatClient chatNameGeneratorClient(OpenAiChatModel chatModel) {
+    ChatClient chatNameGeneratorClient(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel)
                 .defaultSystem(NAME_GENERATION_PROMPT)
                 .build();
     }
 
-    /**
-     * Creates a Cassandra-backed ChatMemoryRepository with a fixed TTL.
-     *
-     * @return a ChatMemoryRepository instance configured to store chat memory
-     *         in Cassandra with entries expiring after 1 day.
-     */
     @Bean
-    public ChatMemoryRepository chatMemoryRepository() {
-        return  CassandraChatMemoryRepository.create(
-                CassandraChatMemoryRepositoryConfig.builder()
-                        .withTimeToLive(Duration.ofDays(1))
-                        .build()
-        );
+    CqlTemplate cqlTemplate(CqlSession session) {
+        return new CqlTemplate(session);
     }
 
-    /**
-     * Creates a ChatMemory bean backed by the provided ChatMemoryRepository.
-     *
-     * Configured as a message window memory that retains only the most recent
-     * 10 messages for each conversation.
-     *
-     * @param chatMemoryRepository the repository used for storing chat history
-     * @return a ChatMemory instance with a 10-message retention window
-     */
+    /*@Bean
+    ChatMemoryRepository chatMemoryRepository(CqlSession cqlSession) {
+        return CassandraChatMemoryRepository
+                .create(CassandraChatMemoryRepositoryConfig.builder()
+                        .withCqlSession(cqlSession)
+                        .build());
+    }*/
+
     @Bean
-    public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository) {
-        return MessageWindowChatMemory.builder()
+    ChatRepository<NoSqlChat, String> chatRepository(ChatMemoryRepository cassandraChatMemoryRepository, CqlTemplate cqlTemplate) {
+        return CassandraChatRepository.builder()
                 .maxMessages(10)
-                .chatMemoryRepository(chatMemoryRepository)
+                .chatMemoryRepository(cassandraChatMemoryRepository)
+                .cqlTemplate(cqlTemplate)
                 .build();
     }
 }
