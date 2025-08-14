@@ -7,6 +7,19 @@ public abstract class Chat {
     private String id;
     private Instant createdAt;
 
+    Chat() {
+    }
+
+    Chat(String id) {
+        this.id = id;
+        this.createdAt = Instant.now();
+    }
+
+    Chat(String id, Instant createdAt) {
+        this.id = id;
+        this.createdAt = createdAt;
+    }
+
     public String getId() {
         return id;
     }

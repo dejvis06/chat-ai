@@ -68,19 +68,25 @@ public class CassandraChatRepository extends ChatRepository<NoSqlChat, String> {
 
     @Override
     public NoSqlChat save(String chatName) {
-        return null;
+        NoSqlChat noSqlChat = new NoSqlChat(chatName);
+
+        cqlTemplate.execute(
+                "INSERT INTO spring.ai_chat_memory (session_id, message_timestamp, messages) VALUES (?, ?, ?)",
+                noSqlChat.getId(),
+                noSqlChat.getCreatedAt(),
+                null
+        );
+
+        return noSqlChat;
     }
+
 
     @Override
     public List<Message> getMaxMessages(String conversationId) {
         throw new UnsupportedOperationException("getMaxMessages is not supported");
     }
 
-    /**
-     * Retrieves all chats from the database.
-     *
-     * @return a {@link List} containing every {@link NoSqlChat} stored in the database
-     */
+
     @Override
     public List<NoSqlChat> findAll() {
         String cqlQuery = """
@@ -88,12 +94,10 @@ public class CassandraChatRepository extends ChatRepository<NoSqlChat, String> {
                     FROM spring.ai_chat_memory
                 """;
 
-        return cqlTemplate.query(cqlQuery, (row, rowNum) -> {
-            NoSqlChat chat = new NoSqlChat();
-            chat.setId(row.getString("session_id"));
-            chat.setCreatedAt(row.getInstant("message_timestamp"));
-            return chat;
-        });
+        return cqlTemplate.query(cqlQuery, (row, rowNum) -> new NoSqlChat(
+                row.getString("session_id"),
+                row.getInstant("message_timestamp")
+        ));
     }
 
     @Override

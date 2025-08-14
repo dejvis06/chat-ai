@@ -49,13 +49,11 @@ public class JdbcChatRepository extends ChatRepository<SqlChat, String> {
     public List<SqlChat> findAll() {
         String sql = "SELECT id, name, created_at FROM chat ORDER BY created_at DESC";
 
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
-            SqlChat chat = new SqlChat();
-            chat.setId(rs.getString("id"));
-            chat.setName(rs.getString("name"));
-            chat.setCreatedAt(rs.getTimestamp("created_at").toInstant());
-            return chat;
-        });
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new SqlChat(
+                rs.getString("id"),
+                rs.getString("name"),
+                rs.getTimestamp("created_at").toInstant()
+        ));
     }
 
     @Override
