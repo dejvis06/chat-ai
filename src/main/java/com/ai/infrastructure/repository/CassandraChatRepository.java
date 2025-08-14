@@ -97,11 +97,11 @@ public class CassandraChatRepository extends ChatRepository<NoSqlChat, String> {
     }
 
     @Override
-    public ChatPage findAll(String chatId, PageMeta pageMeta) {
+    public ChatPage findMessagesByChatId(String chatId, PageMeta pageMeta) {
         if (!(pageMeta instanceof CursorMeta cursor)) {
             throw new IllegalArgumentException("Expected CursorMeta but got " + pageMeta.getClass().getSimpleName());
         }
-        return this.findAll(chatId, cursor.pageSize(), cursor.nextCursor());
+        return findMessagesByChatId(chatId, cursor.pageSize(), cursor.nextCursor());
     }
 
     /**
@@ -115,7 +115,7 @@ public class CassandraChatRepository extends ChatRepository<NoSqlChat, String> {
      *                    If this is null, we start at the newest message. If it’s set,
      *                    Cassandra will skip what you’ve already seen and send the next set.
      */
-    private ChatPage findAll(String chatId, int pageSize, String pagingState) {
+    private ChatPage findMessagesByChatId(String chatId, int pageSize, String pagingState) {
         return cqlTemplate.execute((SessionCallback<ChatPage>) session -> {
             SimpleStatementBuilder builder = SimpleStatement.builder(
                             // add ORDER BY if you have a clustering column (e.g., ts DESC)

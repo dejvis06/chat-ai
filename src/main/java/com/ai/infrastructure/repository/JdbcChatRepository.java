@@ -64,14 +64,14 @@ public class JdbcChatRepository extends ChatRepository<SqlChat, String> {
     }
 
     @Override
-    public ChatPage findAll(String id, PageMeta pageMeta) {
+    public ChatPage findMessagesByChatId(String id, PageMeta pageMeta) {
         if (!(pageMeta instanceof OffsetMeta offsetMeta)) {
             throw new IllegalArgumentException("Expected OffsetMeta but got " + pageMeta.getClass().getSimpleName());
         }
         int page = offsetMeta.nextPage();
         int size = offsetMeta.pageSize();
 
-        List<ChatMessageDto> fetched = this.findAll(id, page, size)
+        List<ChatMessageDto> fetched = this.findMessagesByChatId(id, page, size)
                 .stream()
                 .map(ChatMessageDto::from)
                 .toList();
@@ -82,7 +82,7 @@ public class JdbcChatRepository extends ChatRepository<SqlChat, String> {
         return new ChatPage(fetched, nextPage);
     }
 
-    public List<Message> findAll(String chatId, int page, int size) {
+    public List<Message> findMessagesByChatId(String chatId, int page, int size) {
         String sql = """
                 SELECT content, type, "timestamp"
                 FROM SPRING_AI_CHAT_MEMORY

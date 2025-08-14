@@ -81,11 +81,11 @@ public class ChatController {
      * @return a {@link ResponseEntity} containing an object {@link ChatPage} representing the requested messages and the next available page
      */
     @GetMapping("/{chatId}/messages")
-    public ResponseEntity<ChatPage> findAllMessagesByChatId(
+    public ResponseEntity<ChatPage> findMessagesByChatId(
             @RequestBody PageMeta pageMeta,
             @PathVariable String chatId
     ) {
         log.info("Fetching chats - page meta: {}", pageMeta);
-        return ResponseEntity.ok(chatService.findAllMessagesByChatId(chatId, pageMeta));
+        return ResponseEntity.ok(chatService.findMessagesByChatId(chatId, pageMeta));
     }
 }

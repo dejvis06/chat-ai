@@ -161,10 +161,10 @@ public class ChatService {
      * @param pageMeta page metadata
      * @return an object of {@link ChatPage} representing the requested messages and the next available page
      */
-    public ChatPage findAllMessagesByChatId(String chatId, PageMeta pageMeta) {
+    public ChatPage findMessagesByChatId(String chatId, PageMeta pageMeta) {
         log.info("Fetching messages for chatId={} and page metadata={}", chatId, pageMeta);
 
-        ChatPage chatPage = chatRepository.findAll(chatId, pageMeta);
+        ChatPage chatPage = chatRepository.findMessagesByChatId(chatId, pageMeta);
         log.debug("Retrieved {} messages from repository for chatId={}", chatPage.messages().size(), chatId);
 
         return chatPage;
