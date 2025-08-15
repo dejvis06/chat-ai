@@ -5,10 +5,12 @@ import com.ai.domain.entity.NoSqlChat;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.CursorMeta;
 import com.ai.domain.model.pagination.PageMeta;
+import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.cql.SimpleStatementBuilder;
+import com.datastax.oss.driver.api.core.data.UdtValue;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +18,10 @@ import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.data.cassandra.core.cql.CqlTemplate;
 import org.springframework.data.cassandra.core.cql.SessionCallback;
+import org.springframework.util.Assert;
 
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -76,16 +80,37 @@ public class CassandraChatRepository extends ChatRepository<NoSqlChat, String> {
                 noSqlChat.getCreatedAt(),
                 null
         );
-
         return noSqlChat;
     }
 
+    @Override
+    public void add(String conversationId, Message message) {
+        Assert.hasText(conversationId, "conversationId cannot be null or empty");
+        Assert.notNull(message, "message cannot be null");
+
+        CqlSession session = cqlTemplate.getSession();
+
+        UdtValue msgUdt = session.getMetadata()
+                .getKeyspace(session.getKeyspace().orElseThrow()).orElseThrow()
+                .getUserDefinedType("ai_chat_message").orElseThrow()
+                .newValue()
+                .setInstant("msg_timestamp", Instant.now())
+                .setString("msg_type", message.getMessageType().getValue())
+                .setString("msg_content", message.getText());
+
+        session.execute(
+                session.prepare("""
+                        INSERT INTO spring.ai_chat_memory
+                        (session_id, message_timestamp, messages)
+                        VALUES (?, toTimestamp(now()), ?)
+                        """).bind(conversationId, List.of(msgUdt))
+        );
+    }
 
     @Override
     public List<Message> getMaxMessages(String conversationId) {
         throw new UnsupportedOperationException("getMaxMessages is not supported");
     }
-
 
     @Override
     public List<NoSqlChat> findAll() {

@@ -6,23 +6,28 @@ import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.OffsetMeta;
 import com.ai.domain.model.pagination.PageMeta;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
+import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepositoryDialect;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.util.Assert;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 
 public class JdbcChatRepository extends ChatRepository<SqlChat, String> {
 
     private final JdbcTemplate jdbcTemplate;
+    private final JdbcChatMemoryRepositoryDialect dialect;
 
-    public JdbcChatRepository(JdbcTemplate jdbcTemplate, ChatMemoryRepository chatMemoryRepository, int maxMessages) {
+    public JdbcChatRepository(JdbcTemplate jdbcTemplate, ChatMemoryRepository chatMemoryRepository, int maxMessages, JdbcChatMemoryRepositoryDialect dialect) {
         super(chatMemoryRepository, maxMessages);
         this.jdbcTemplate = jdbcTemplate;
+        this.dialect = dialect;
     }
 
     @Override
@@ -43,6 +48,20 @@ public class JdbcChatRepository extends ChatRepository<SqlChat, String> {
 
         chat.setId(keyHolder.getKey().toString());
         return chat;
+    }
+
+    @Override
+    public void add(String conversationId, Message message) {
+        Assert.hasText(conversationId, "conversationId cannot be null or empty");
+        Assert.notNull(message, "message cannot be null");
+
+        jdbcTemplate.update(
+                this.dialect.getInsertMessageSql(),
+                conversationId,
+                message.getText(),
+                message.getMessageType().getValue(),
+                Timestamp.from(Instant.now())
+        );
     }
 
     @Override
@@ -108,6 +127,7 @@ public class JdbcChatRepository extends ChatRepository<SqlChat, String> {
         private ChatMemoryRepository chatMemoryRepository;
         private int maxMessages = 20;
         private JdbcTemplate jdbcTemplate;
+        private JdbcChatMemoryRepositoryDialect dialect;
 
         private Builder() {
         }
@@ -134,7 +154,10 @@ public class JdbcChatRepository extends ChatRepository<SqlChat, String> {
             if (this.jdbcTemplate == null) {
                 throw new IllegalStateException("JdbcTemplate is not configured");
             }
-            return new JdbcChatRepository(this.jdbcTemplate, this.chatMemoryRepository, this.maxMessages);
+            if (this.dialect == null) {
+                throw new IllegalStateException("JdbcChatMemoryRepositoryDialect is not configured");
+            }
+            return new JdbcChatRepository(this.jdbcTemplate, this.chatMemoryRepository, this.maxMessages, this.dialect);
         }
     }
 }
