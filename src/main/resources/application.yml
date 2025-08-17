@@ -2,12 +2,6 @@ spring:
   ai:
     openai:
       api-key:
-    chat:
-      memory:
-        repository:
-          cassandra:
-            keyspace: spring
-            initialize-schema: false
 
   cassandra:
       contactPoints: 127.0.0.1

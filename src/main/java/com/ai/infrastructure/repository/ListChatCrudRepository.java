@@ -4,11 +4,11 @@ import org.springframework.ai.chat.messages.Message;
 
 import java.util.List;
 
-public interface ListChatCrudRepository<T, ID> {
+public interface ListChatCrudRepository<T> {
 
-    void saveAll(ID id, List<Message> messages);
+    void saveAll(String id, List<Message> messages);
 
     List<T> findAll();
 
-    List<ID> findConversationIds();
+    List<String> findConversationIds();
 }

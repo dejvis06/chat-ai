@@ -4,15 +4,15 @@ import org.springframework.ai.chat.messages.Message;
 
 import java.util.List;
 
-public interface ChatCrudRepository<T, ID> extends ListChatCrudRepository<T, ID>, PagingRepository<ID> {
+public interface ChatCrudRepository<T> extends ListChatCrudRepository<T>, PagingRepository {
 
     T save(String chatName);
 
-    void deleteById(ID id);
+    void deleteById(String id);
 
-    void deleteByConversationId(ID id);
+    void deleteByConversationId(String id);
 
-    List<Message> findByConversationId(ID id);
+    List<Message> findByConversationId(String id);
 
-    List<Message> findLastNByConversationId(ID id, int limit);
+    List<Message> findLastNByConversationId(String id, int limit);
 }

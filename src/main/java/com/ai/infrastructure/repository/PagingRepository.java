@@ -3,7 +3,7 @@ package com.ai.infrastructure.repository;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.PageMeta;
 
-public interface PagingRepository<ID> {
+public interface PagingRepository {
 
     /**
      * Retrieves a paginated list of messages for the specified chat.
@@ -12,5 +12,5 @@ public interface PagingRepository<ID> {
      * @param pageMeta pagination details (offset or cursor based)
      * @return a page of chat messages along with pagination metadata
      */
-    ChatPage findByConversationId(ID id, PageMeta pageMeta);
+    ChatPage findByConversationId(String id, PageMeta pageMeta);
 }

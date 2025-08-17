@@ -1,4 +1,6 @@
 package com.ai.infrastructure.repository;
 
-public interface ChatRepository<T, ID> extends ChatCrudRepository<T, ID> {
+import com.ai.domain.entity.Chat;
+
+public interface ChatRepository<T extends Chat> extends ChatCrudRepository<T> {
 }

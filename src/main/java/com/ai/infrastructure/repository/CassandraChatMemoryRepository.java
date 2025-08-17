@@ -20,9 +20,12 @@ import org.springframework.util.Assert;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.UUID;
 
-public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, String> {
+public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> {
 
     private static final Logger log = LoggerFactory.getLogger(CassandraChatMemoryRepository.class);
 
@@ -39,18 +42,18 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
     @Override
     public NoSqlChat save(String chatName) {
         NoSqlChat noSqlChat = new NoSqlChat(
-                UUID.randomUUID().toString(),
-                chatName
+                chatName,
+                UUID.randomUUID().toString()
         );
 
         boolean executed = cqlTemplate.execute(
-                "INSERT INTO spring.ai_chat_memory (session_id, session_name, created_at) VALUES (?, ?, ?) IF NOT EXISTS",
+                "INSERT INTO ai_chat_memory (session_id, session_name, created_at) VALUES (?, ?, ?) IF NOT EXISTS",
                 noSqlChat.getId(),
                 noSqlChat.getName(),
-                Date.from(noSqlChat.getCreatedAt())
+                noSqlChat.getCreatedAt()
         );
         if (!executed) {
-            log.error("Insert failed for chatId={} into spring.ai_chat_memory", noSqlChat.getId());
+            log.error("Insert failed for chatId={} into ai_chat_memory", noSqlChat.getId());
             throw new IllegalStateException(
                     "Failed to insert chat with id=" + noSqlChat.getId()
             );
@@ -62,7 +65,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
                 noSqlChat.getName()
         );
 
-        log.info("Successfully inserted chatId={} into spring.ai_chat_memory", noSqlChat.getId());
+        log.info("Successfully inserted chatId={} into ai_chat_memory", noSqlChat.getId());
         return noSqlChat;
     }
 
@@ -73,7 +76,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
         return cqlTemplate.query(
                 """
                         SELECT msg_type, msg_content
-                        FROM spring.ai_chat_message
+                        FROM ai_chat_message
                         WHERE session_id = ?
                         ORDER BY msg_timestamp
                         """,
@@ -100,7 +103,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
         return cqlTemplate.query(
                 """
                         SELECT msg_type, msg_content
-                        FROM spring.ai_chat_message
+                        FROM ai_chat_message
                         WHERE session_id = ? AND session_created_at = ?
                         LIMIT ?
                         """,
@@ -128,7 +131,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
         this.deleteByConversationId(chatId);
 
         cqlTemplate.execute(
-                "DELETE FROM spring.ai_chat_memory WHERE session_id = ? AND created_at = ?",
+                "DELETE FROM ai_chat_memory WHERE session_id = ? AND created_at = ?",
                 chatId
         );
     }
@@ -138,7 +141,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
         Assert.hasText(chatId, ID_CANNOT_BE_NULL_OR_EMPTY);
 
         cqlTemplate.execute(
-                "DELETE FROM spring.ai_chat_message WHERE session_id = ?",
+                "DELETE FROM ai_chat_message WHERE session_id = ?",
                 chatId
         );
     }
@@ -149,7 +152,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
         Assert.notEmpty(messages, "messages cannot be null or empty");
 
         var ps = cqlSession.prepare(
-                "INSERT INTO spring.ai_chat_message " +
+                "INSERT INTO ai_chat_message " +
                         "(session_id, msg_timestamp, msg_type, msg_content) " +
                         "VALUES (?, ?, ?, ?)"
         );
@@ -159,7 +162,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
         for (Message m : messages) {
             batch.addStatement(ps.bind(
                     chatId,
-                    Date.from(Instant.now()),
+                    Instant.now(),
                     m.getMessageType().getValue(),
                     m.getText()
             ));
@@ -213,7 +216,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat, 
         return cqlTemplate.execute((SessionCallback<ChatPage>) session -> {
             SimpleStatementBuilder builder = SimpleStatement.builder(
                             "SELECT msg_type, msg_content " +
-                                    "FROM spring.ai_chat_message " +
+                                    "FROM ai_chat_message " +
                                     "WHERE session_id = ?")
                     .addPositionalValue(chatId)
                     .setPageSize(pageSize);

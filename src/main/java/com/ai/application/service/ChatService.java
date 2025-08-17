@@ -5,13 +5,13 @@ import com.ai.application.dto.ChatMessageDto;
 import com.ai.domain.entity.Chat;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.PageMeta;
-import com.ai.infrastructure.repository.ChatMemory;
 import com.ai.infrastructure.repository.ChatRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.http.ResponseEntity;
@@ -30,8 +30,8 @@ public class ChatService {
 
     private final ChatClient openAiChatClient;
     private final ChatClient chatNameGeneratorClient;
-    private final ChatMemory<String> chatMemory;
-    private final ChatRepository<Chat, String> chatRepository;
+    private final ChatMemory chatMemory;
+    private final ChatRepository<? extends Chat> chatRepository;
     private final ObjectMapper objectMapper;
 
     public static final String CHAT_CREATED = "chat_created";
@@ -40,8 +40,8 @@ public class ChatService {
     public ChatService(
             ChatClient openAiChatClient,
             ChatClient chatNameGeneratorClient,
-            ChatMemory<String> chatMemory,
-            ChatRepository<Chat, String> chatRepository, ObjectMapper objectMapper
+            ChatMemory chatMemory,
+            ChatRepository<? extends Chat> chatRepository, ObjectMapper objectMapper
     ) {
         this.openAiChatClient = openAiChatClient;
         this.chatNameGeneratorClient = chatNameGeneratorClient;
@@ -159,7 +159,6 @@ public class ChatService {
         return history;
     }
 
-
     /**
      * Retrieves all chats.
      *
@@ -168,7 +167,7 @@ public class ChatService {
     public List<ChatDto> findAll() {
         log.info("Fetching all chats from repository");
 
-        List<Chat> chats = chatRepository.findAll();
+        List<? extends Chat> chats = chatRepository.findAll();
         log.info("Retrieved {} chats from database", chats.size());
 
         List<ChatDto> result = chats.stream()
@@ -179,7 +178,6 @@ public class ChatService {
 
         return result;
     }
-
 
     /**
      * Retrieves a paginated list of messages for the specified chat.

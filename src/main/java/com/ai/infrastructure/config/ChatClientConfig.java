@@ -1,11 +1,9 @@
 package com.ai.infrastructure.config;
 
-import com.datastax.oss.driver.api.core.CqlSession;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.cassandra.core.cql.CqlTemplate;
 
 @Configuration
 public class ChatClientConfig {
@@ -37,10 +35,5 @@ public class ChatClientConfig {
         return ChatClient.builder(chatModel)
                 .defaultSystem(NAME_GENERATION_PROMPT)
                 .build();
-    }
-
-    @Bean
-    CqlTemplate cqlTemplate(CqlSession session) {
-        return new CqlTemplate(session);
     }
 }
