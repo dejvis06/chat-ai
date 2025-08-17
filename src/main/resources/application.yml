@@ -15,3 +15,12 @@ spring:
       localDatacenter: datacenter1
       username: cassandra
       password: cassandra
+
+  flyway:
+    enabled: true
+    url: jdbc:cassandra://127.0.0.1:9042?localdatacenter=datacenter1
+    user: cassandra
+    password: cassandra
+    default-schema: spring
+    locations: classpath:db/migration
+    sql-migration-suffixes: cql   # pick up .cql files

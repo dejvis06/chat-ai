@@ -5,6 +5,7 @@ import com.ai.application.dto.ChatMessageDto;
 import com.ai.domain.entity.Chat;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.PageMeta;
+import com.ai.infrastructure.repository.ChatMemory;
 import com.ai.infrastructure.repository.ChatRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +17,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -28,28 +30,90 @@ public class ChatService {
 
     private final ChatClient openAiChatClient;
     private final ChatClient chatNameGeneratorClient;
+    private final ChatMemory<String> chatMemory;
+    private final ChatRepository<Chat, String> chatRepository;
 
-    private final ChatRepository<Chat, Object> chatRepository;
-
+    public static final String CHAT_CREATED = "chat_created";
     public static final String END_STREAM = "END_STREAM";
 
     public ChatService(
             ChatClient openAiChatClient,
             ChatClient chatNameGeneratorClient,
-            ChatRepository chatRepository
+            ChatMemory<String> chatMemory,
+            ChatRepository<Chat, String> chatRepository
     ) {
         this.openAiChatClient = openAiChatClient;
         this.chatNameGeneratorClient = chatNameGeneratorClient;
+        this.chatMemory = chatMemory;
         this.chatRepository = chatRepository;
     }
 
     /**
-     * Creates and persists a new Chat based on the provided user message.
+     * Streams an assistant response over Server-Sent Events (SSE).
      *
-     * @param userMessage the initial message from the user, used to generate a chat name
-     * @return a {@link ChatDto} containing the chat’s ID, generated name, and no messages
+     * <p>Workflow:</p>
+     * <ul>
+     *   <li>If {@code chatId} is null, a new chat is created and a {@code chat_created} SSE event is sent first.</li>
+     *   <li>The user's message is added to the chat memory.</li>
+     *   <li>The assistant's response is requested from the model and streamed back chunk by chunk as SSE events.</li>
+     *   <li>All streamed chunks are accumulated and, once complete, the full assistant message is saved to chat memory.</li>
+     *   <li>Finally, an {@code END_STREAM} SSE event signals completion of the stream.</li>
+     * </ul>
+     *
+     * @param chatId      existing chat identifier, or {@code null} to create a new chat
+     * @param userMessage the message from the user to process
+     * @return a {@link Flux} of {@link ServerSentEvent} objects representing the streamed response
      */
-    public ChatDto save(String userMessage) {
+    public Flux<ServerSentEvent<String>> stream(String chatId, String userMessage) {
+        log.info("Received user message: {}", userMessage);
+
+        final String finalChatId = (chatId == null)
+                ? saveChat(userMessage)
+                : chatId;
+        final boolean createdChat = (chatId == null);
+
+        Flux<ServerSentEvent<String>> createdChatEvent = (createdChat)
+                ? Flux.just(ServerSentEvent.builder(finalChatId).event(CHAT_CREATED).build())
+                : Flux.empty();
+
+        chatMemory.add(finalChatId, new UserMessage(userMessage));
+        log.info("User message added to chat memory for chatId={}", finalChatId);
+
+        StringBuilder assistantResponse = new StringBuilder();
+
+        return createdChatEvent.concatWith(
+                openAiChatClient
+                        .prompt()
+                        .messages(chatMemory.get(finalChatId))
+                        .stream()
+                        .content()
+                        .map(chunk -> {
+                            log.info("Streaming chunk: {}", chunk);
+
+                            assistantResponse.append(chunk);  // accumulate the streamed chunk
+
+                            String jsonChunk = encodeToJson(chunk); // convert to JSON for SSE
+                            log.info("Encoded chunk to JSON");
+
+                            return ServerSentEvent.builder(jsonChunk).build();  // SSE emit
+                        })
+                        .concatWith(Flux.defer(() -> {
+                            log.info("Streaming complete");
+
+                            // Add full assistant response
+                            chatMemory.add(finalChatId, new AssistantMessage(assistantResponse.toString()));
+                            log.info("Assistant response saved to chat memory for chatId={}", finalChatId);
+
+                            return Flux.just(
+                                    ServerSentEvent.<String>builder()
+                                            .event(END_STREAM)
+                                            .build()
+                            );
+                        }))
+        );
+    }
+
+    private String saveChat(String userMessage) {
         log.info("Starting chat creation for user message: {}", userMessage);
 
         String chatName = chatNameGeneratorClient.prompt()
@@ -58,62 +122,10 @@ public class ChatService {
                 .content();
         log.debug("Generated chat name from client: {}", chatName);
 
-        Chat chat = chatRepository.save(chatName);
-        log.info("Chat successfully saved with ID: {}", chat.getId());
+        String chatId = chatRepository.save(chatName).getId();
+        Assert.hasText(chatId, "chatId cannot be empty or null");
 
-        return ChatDto.from(chat, null);
-    }
-
-    /**
-     * Streams the assistant’s response to the given user message as Server‑Sent Events (SSE).
-     * <p>
-     * Steps:
-     * <ul>
-     *   <li>Sends the message to OpenAI and streams back partial response chunks as SSE.</li>
-     *   <li>Accumulates all chunks into a single assistant reply.</li>
-     *   <li>When streaming finishes, stores the full assistant response in chat memory and emits a final “end” event.</li>
-     * </ul>
-     *
-     * @param userMessage the user’s message to send to the assistant
-     * @return a {@code Flux<ServerSentEvent<String>>} emitting streamed response chunks followed by a final “end” event
-     */
-    public Flux<ServerSentEvent<String>> stream(String chatId, String userMessage) {
-        log.info("Received user message: {}", userMessage);
-
-        chatRepository.add(chatId, new UserMessage(userMessage));
-        log.info("User message added to chat memory for chatId={}", chatId);
-
-        StringBuilder assistantResponse = new StringBuilder();
-
-        return openAiChatClient
-                .prompt()
-                .messages(chatRepository.get(chatId))
-                .user(userMessage)
-                .stream()
-                .content()
-                .map(chunk -> {
-                    log.info("Streaming chunk: {}", chunk);
-
-                    assistantResponse.append(chunk);  // accumulate the streamed chunk
-
-                    String jsonChunk = encodeToJson(chunk); // convert to JSON for SSE
-                    log.info("Encoded chunk to JSON");
-
-                    return ServerSentEvent.builder(jsonChunk).build();  // SSE emit
-                })
-                .concatWith(Flux.defer(() -> {
-                    log.info("Streaming complete");
-
-                    // Add full assistant response
-                    chatRepository.add(chatId, new AssistantMessage(assistantResponse.toString()));
-                    log.info("Assistant response saved to chat memory for chatId={}", chatId);
-
-                    return Flux.just(
-                            ServerSentEvent.<String>builder()
-                                    .event(END_STREAM)
-                                    .build()
-                    );
-                }));
+        return chatId;
     }
 
     private String encodeToJson(String message) {
@@ -132,7 +144,7 @@ public class ChatService {
      * @return a list of chat messages (as DTOs) exchanged in this chat
      */
     public List<ChatMessageDto> getChatHistory(String chatId) {
-        return chatRepository.get(chatId)
+        return chatMemory.get(chatId)
                 .stream()
                 .map(ChatMessageDto::from)
                 .toList();
@@ -164,7 +176,7 @@ public class ChatService {
     public ChatPage findMessagesByChatId(String chatId, PageMeta pageMeta) {
         log.info("Fetching messages for chatId={} and page metadata={}", chatId, pageMeta);
 
-        ChatPage chatPage = chatRepository.findMessagesByChatId(chatId, pageMeta);
+        ChatPage chatPage = chatRepository.findByConversationId(chatId, pageMeta);
         log.debug("Retrieved {} messages from repository for chatId={}", chatPage.messages().size(), chatId);
 
         return chatPage;

@@ -12,5 +12,5 @@ public interface PagingRepository<ID> {
      * @param pageMeta pagination details (offset or cursor based)
      * @return a page of chat messages along with pagination metadata
      */
-    ChatPage findMessagesByChatId(ID id, PageMeta pageMeta);
+    ChatPage findByConversationId(ID id, PageMeta pageMeta);
 }

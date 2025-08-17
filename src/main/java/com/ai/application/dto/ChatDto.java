@@ -15,7 +15,7 @@ public record ChatDto(
 ) {
     public static ChatDto from(Chat chat, List<ChatMessageDto> messages) {
         if (chat instanceof NoSqlChat noSqlChat) {
-            return new ChatDto(noSqlChat.getId(), noSqlChat.getId(), noSqlChat.getCreatedAt(), messages);
+            return new ChatDto(noSqlChat.getId(), noSqlChat.getName(), noSqlChat.getCreatedAt(), messages);
         }
         if (chat instanceof SqlChat sqlChat) {
             return new ChatDto(sqlChat.getId(), sqlChat.getName(), chat.getCreatedAt(), messages);

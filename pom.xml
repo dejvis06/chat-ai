@@ -50,6 +50,22 @@
 			<artifactId>spring-data-cassandra</artifactId>
 		</dependency>
 
+		<!-- Flyway core + Cassandra support -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-cassandra</artifactId>
+		</dependency>
+		<!-- JDBC wrapper Flyway uses for Cassandra -->
+		<dependency>
+			<groupId>com.ing.data</groupId>
+			<artifactId>cassandra-jdbc-wrapper</artifactId>
+			<version>4.16.0</version>
+		</dependency>
+
 		<!-- AI -->
 		<dependency>
 			<groupId>org.springframework.ai</groupId>

@@ -4,11 +4,19 @@ import java.time.Instant;
 
 public class NoSqlChat extends Chat {
 
-    public NoSqlChat(String id, Instant createdAt) {
+    private final String name;
+
+    public NoSqlChat(String id, String name, Instant createdAt) {
         super(id, createdAt);
+        this.name = name;
     }
 
-    public NoSqlChat(String id) {
+    public NoSqlChat(String name, String id) {
         super(id);
+        this.name = name;
+    }
+
+    public String getName() {
+        return this.name;
     }
 }
