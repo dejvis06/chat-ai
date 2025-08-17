@@ -1,11 +1,7 @@
 package com.ai.infrastructure.config;
 
-import com.ai.domain.entity.NoSqlChat;
-import com.ai.infrastructure.repository.CassandraChatRepository;
-import com.ai.infrastructure.repository.ChatRepository;
 import com.datastax.oss.driver.api.core.CqlSession;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,22 +42,5 @@ public class ChatClientConfig {
     @Bean
     CqlTemplate cqlTemplate(CqlSession session) {
         return new CqlTemplate(session);
-    }
-
-    /*@Bean
-    ChatMemoryRepository chatMemoryRepository(CqlSession cqlSession) {
-        return CassandraChatMemoryRepository
-                .create(CassandraChatMemoryRepositoryConfig.builder()
-                        .withCqlSession(cqlSession)
-                        .build());
-    }*/
-
-    @Bean
-    ChatRepository<NoSqlChat, String> chatRepository(ChatMemoryRepository cassandraChatMemoryRepository, CqlTemplate cqlTemplate) {
-        return CassandraChatRepository.builder()
-                .maxMessages(10)
-                .chatMemoryRepository(cassandraChatMemoryRepository)
-                .cqlTemplate(cqlTemplate)
-                .build();
     }
 }
