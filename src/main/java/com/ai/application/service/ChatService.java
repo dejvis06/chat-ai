@@ -32,6 +32,7 @@ public class ChatService {
     private final ChatClient chatNameGeneratorClient;
     private final ChatMemory<String> chatMemory;
     private final ChatRepository<Chat, String> chatRepository;
+    private final ObjectMapper objectMapper;
 
     public static final String CHAT_CREATED = "chat_created";
     public static final String END_STREAM = "END_STREAM";
@@ -40,12 +41,13 @@ public class ChatService {
             ChatClient openAiChatClient,
             ChatClient chatNameGeneratorClient,
             ChatMemory<String> chatMemory,
-            ChatRepository<Chat, String> chatRepository
+            ChatRepository<Chat, String> chatRepository, ObjectMapper objectMapper
     ) {
         this.openAiChatClient = openAiChatClient;
         this.chatNameGeneratorClient = chatNameGeneratorClient;
         this.chatMemory = chatMemory;
         this.chatRepository = chatRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -72,7 +74,7 @@ public class ChatService {
                 : chatId;
         final boolean createdChat = (chatId == null);
 
-        Flux<ServerSentEvent<String>> createdChatEvent = (createdChat)
+        Flux<ServerSentEvent<String>> createdChatEvent = createdChat
                 ? Flux.just(ServerSentEvent.builder(finalChatId).event(CHAT_CREATED).build())
                 : Flux.empty();
 
@@ -120,19 +122,20 @@ public class ChatService {
                 .user(userMessage)
                 .call()
                 .content();
-        log.debug("Generated chat name from client: {}", chatName);
+        log.info("Generated chat name from client: {}", chatName);
 
         String chatId = chatRepository.save(chatName).getId();
         Assert.hasText(chatId, "chatId cannot be empty or null");
+        log.info("Chat successfully created with ID: {}", chatId);
 
         return chatId;
     }
 
     private String encodeToJson(String message) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
             return objectMapper.writeValueAsString(Map.of("text", message));
         } catch (JsonProcessingException e) {
+            log.error("Failed to encode message '{}' to JSON", message, e);
             throw new RuntimeException("Failed to encode JSON", e);
         }
     }
@@ -144,11 +147,18 @@ public class ChatService {
      * @return a list of chat messages (as DTOs) exchanged in this chat
      */
     public List<ChatMessageDto> getChatHistory(String chatId) {
-        return chatMemory.get(chatId)
+        log.info("Fetching chat history for chatId: {}", chatId);
+
+        List<ChatMessageDto> history = chatMemory.get(chatId)
                 .stream()
                 .map(ChatMessageDto::from)
                 .toList();
+
+        log.info("Successfully fetched chat history for chatId: {}", chatId);
+
+        return history;
     }
+
 
     /**
      * Retrieves all chats.
@@ -159,12 +169,17 @@ public class ChatService {
         log.info("Fetching all chats from repository");
 
         List<Chat> chats = chatRepository.findAll();
-        log.debug("Retrieved {} chats from database", chats.size());
+        log.info("Retrieved {} chats from database", chats.size());
 
-        return chats.stream()
+        List<ChatDto> result = chats.stream()
                 .map(chat -> ChatDto.from(chat, null))
                 .toList();
+
+        log.info("Successfully fetched all chats");
+
+        return result;
     }
+
 
     /**
      * Retrieves a paginated list of messages for the specified chat.
@@ -177,7 +192,7 @@ public class ChatService {
         log.info("Fetching messages for chatId={} and page metadata={}", chatId, pageMeta);
 
         ChatPage chatPage = chatRepository.findByConversationId(chatId, pageMeta);
-        log.debug("Retrieved {} messages from repository for chatId={}", chatPage.messages().size(), chatId);
+        log.info("Retrieved {} messages from repository for chatId={}", chatPage.messages().size(), chatId);
 
         return chatPage;
     }
