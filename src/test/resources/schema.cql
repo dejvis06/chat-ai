@@ -31,4 +31,4 @@ CREATE TABLE IF NOT EXISTS chats_by_created (
     session_id    text,        -- chat id
     session_name  text,
     PRIMARY KEY ((bucket), created_at, session_id)
-) WITH CLUSTERING ORDER BY (created_at DESC);
+) WITH CLUSTERING ORDER BY (created_at ASC);

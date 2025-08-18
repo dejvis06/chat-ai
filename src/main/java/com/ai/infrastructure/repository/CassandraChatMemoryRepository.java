@@ -77,10 +77,9 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> 
 
         return cqlTemplate.query(
                 """
-                        SELECT msg_type, msg_content
+                        SELECT msg_type, msg_content, msg_timestamp
                         FROM ai_chat_message
                         WHERE session_id = ?
-                        ORDER BY msg_timestamp
                         """,
                 (row, rowNum) -> {
                     String type = row.getString("msg_type");
@@ -104,9 +103,9 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> 
 
         return cqlTemplate.query(
                 """
-                        SELECT msg_type, msg_content
+                        SELECT msg_type, msg_content, msg_timestamp
                         FROM ai_chat_message
-                        WHERE session_id = ? AND session_created_at = ?
+                        WHERE session_id = ?
                         LIMIT ?
                         """,
                 (row, rowNum) -> {
@@ -132,10 +131,17 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> 
 
         this.deleteByConversationId(chatId);
 
-        cqlTemplate.execute(
-                "DELETE FROM ai_chat_memory WHERE session_id = ? AND created_at = ?",
+        Instant createdAt = cqlTemplate.queryForObject(
+                "SELECT created_at FROM ai_chat_memory WHERE session_id = ?",
+                (row, n) -> row.getInstant("created_at"),
                 chatId
         );
+        UUID createdAtTimeUuid = Uuids.startOf(createdAt.toEpochMilli());
+        cqlSession.execute(
+                "DELETE FROM chats_by_created WHERE bucket = 'all' AND created_at = ? AND session_id = ?",
+                createdAtTimeUuid, chatId
+        );
+        cqlTemplate.execute("DELETE FROM ai_chat_memory WHERE session_id = ?", chatId);
     }
 
     @Override
@@ -164,7 +170,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> 
         for (Message m : messages) {
             batch.addStatement(ps.bind(
                     chatId,
-                    Instant.now(),
+                    m.getMetadata().get("msg_timestamp"),
                     m.getMessageType().getValue(),
                     m.getText()
             ));
@@ -190,7 +196,10 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> 
 
     @Override
     public List<String> findConversationIds() {
-        throw new UnsupportedOperationException("findConversationIds not supported");
+        return cqlTemplate.query(
+                "SELECT session_id FROM ai_chat_memory",
+                (row, rowNum) -> row.getString("session_id")
+        );
     }
 
     @Override
