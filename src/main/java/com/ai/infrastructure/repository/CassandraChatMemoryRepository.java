@@ -59,8 +59,10 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> 
             );
         }
 
+        UUID createdAtTimeUuid = Uuids.startOf(noSqlChat.getCreatedAt().toEpochMilli());
         cqlSession.execute(
-                "INSERT INTO chats_by_created (bucket, created_at, session_id, session_name) VALUES ('all', now(), ?, ?)",
+                "INSERT INTO chats_by_created (bucket, created_at, session_id, session_name) VALUES ('all', ?, ?, ?)",
+                createdAtTimeUuid,
                 noSqlChat.getId(),
                 noSqlChat.getName()
         );
