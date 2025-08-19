@@ -5,6 +5,7 @@ import com.ai.domain.entity.NoSqlChat;
 import com.ai.infrastructure.config.ChatClientConfig;
 import com.ai.infrastructure.config.ChatMemoryConfig;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -36,6 +37,13 @@ class CassandraChatRepositoryIT {
 
     @Autowired
     CqlTemplate cqlTemplate;
+
+    @AfterEach
+    void cleanUp() {
+        cqlTemplate.execute("TRUNCATE ai_chat_message");
+        cqlTemplate.execute("TRUNCATE ai_chat_memory");
+        cqlTemplate.execute("TRUNCATE chats_by_created");
+    }
 
     @Test
     void saveChat_shouldPersistAndBeRetrievable() {
@@ -259,4 +267,32 @@ class CassandraChatRepositoryIT {
                 .hasMessageContaining("cannot be null or empty");
     }
 
+    @Test
+    void shouldReturnAllChatsOrderedByCreatedAt() {
+        UUID createdAt1 = Uuids.timeBased();
+
+        // second UUID a bit later (e.g. +1 sec)
+        UUID createdAt2 = Uuids.startOf(System.currentTimeMillis() + 1000);
+
+        cqlTemplate.execute("INSERT INTO chats_by_created (bucket, created_at, session_id, session_name) " +
+                "VALUES ('all', ?, 's1', 'First Chat')", createdAt1);
+        cqlTemplate.execute("INSERT INTO chats_by_created (bucket, created_at, session_id, session_name) " +
+                "VALUES ('all', ?, 's2', 'Second Chat')", createdAt2);
+
+        List<NoSqlChat> chats = chatRepository.findAll();
+
+        assertThat(chats).hasSize(2);
+        assertThat(chats.get(0).getId()).isEqualTo("s2");
+        assertThat(chats.get(1).getId()).isEqualTo("s1");
+    }
+
+    @Test
+    void shouldReturnAllConversationIds_fromAiChatMemory() {
+        cqlTemplate.execute("INSERT INTO ai_chat_memory (session_id, session_name, created_at) VALUES ('s1', 'First', toTimestamp(now()))");
+        cqlTemplate.execute("INSERT INTO ai_chat_memory (session_id, session_name, created_at) VALUES ('s2', 'Second', toTimestamp(now()))");
+
+        List<String> ids = chatRepository.findConversationIds();
+
+        assertThat(ids).containsExactlyInAnyOrder("s1", "s2");
+    }
 }
