@@ -242,7 +242,7 @@ public class CassandraChatMemoryRepository implements ChatRepository<NoSqlChat> 
             List<ChatMessageDto> items = new ArrayList<>(available);
             for (int i = 0; i < available; i++) {
                 Row r = rs.one();
-                items.add(new ChatMessageDto(r.getString("type"), r.getString("content")));
+                items.add(new ChatMessageDto(r.getString("msg_type"), r.getString("msg_content")));
             }
 
             // next paging state as Base64

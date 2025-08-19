@@ -2,6 +2,8 @@ package com.ai.infrastructure.repository;
 
 import com.ai.config.CassandraTestConfig;
 import com.ai.domain.entity.NoSqlChat;
+import com.ai.domain.model.pagination.ChatPage;
+import com.ai.domain.model.pagination.CursorMeta;
 import com.ai.infrastructure.config.ChatClientConfig;
 import com.ai.infrastructure.config.ChatMemoryConfig;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
@@ -14,10 +16,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.cassandra.core.cql.CqlTemplate;
-import org.testcontainers.cassandra.CassandraContainer;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,8 +31,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({CassandraTestConfig.class, ChatClientConfig.class, ChatMemoryConfig.class})
 class CassandraChatRepositoryIT {
 
-    @Autowired
-    CassandraContainer cassandraContainer;
 
     @Autowired
     CassandraChatMemoryRepository chatRepository;
@@ -294,5 +294,48 @@ class CassandraChatRepositoryIT {
         List<String> ids = chatRepository.findConversationIds();
 
         assertThat(ids).containsExactlyInAnyOrder("s1", "s2");
+    }
+
+    @Test
+    void shouldReturnPaginatedMessagesByConversationId() {
+        String chatId = "s1";
+
+        // Insert 10 messages, each with +1s timestamp
+        long base = System.currentTimeMillis();
+        for (int i = 1; i <= 10; i++) {
+            cqlTemplate.execute("INSERT INTO ai_chat_message (session_id, msg_timestamp, msg_type, msg_content) " +
+                            "VALUES (?, ?, ?, ?)",
+                    chatId,
+                    Instant.ofEpochMilli(base + (i * 1000L)),   // +1 second each
+                    "USER",
+                    "Message-" + i
+            );
+        }
+
+        // --- Page 1 ---
+        ChatPage page1 = chatRepository.findByConversationId(chatId, new CursorMeta(null, 3));
+        assertThat(page1.messages()).hasSize(3);
+        assertThat(page1.messages().get(0).content()).isEqualTo("Message-10"); // DESC by timestamp
+        assertThat(page1.messages().get(1).content()).isEqualTo("Message-9");
+        assertThat(page1.messages().get(2).content()).isEqualTo("Message-8");
+
+        // --- Page 2 ---
+        ChatPage page2 = chatRepository.findByConversationId(chatId, page1.pageMeta());
+        assertThat(page2.messages()).hasSize(3);
+        assertThat(page2.messages().get(0).content()).isEqualTo("Message-7");
+        assertThat(page2.messages().get(1).content()).isEqualTo("Message-6");
+        assertThat(page2.messages().get(2).content()).isEqualTo("Message-5");
+
+        // --- Page 3 ---
+        ChatPage page3 = chatRepository.findByConversationId(chatId, page2.pageMeta());
+        assertThat(page3.messages()).hasSize(3);
+        assertThat(page3.messages().get(0).content()).isEqualTo("Message-4");
+        assertThat(page3.messages().get(1).content()).isEqualTo("Message-3");
+        assertThat(page3.messages().get(2).content()).isEqualTo("Message-2");
+
+        // --- Page 4 ---
+        ChatPage page4 = chatRepository.findByConversationId(chatId, page3.pageMeta());
+        assertThat(page4.messages()).hasSize(1);
+        assertThat(page4.messages().get(0).content()).isEqualTo("Message-1");
     }
 }
