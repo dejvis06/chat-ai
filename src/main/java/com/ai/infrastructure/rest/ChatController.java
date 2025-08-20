@@ -30,8 +30,8 @@ public class ChatController {
     /**
      * Streams AI responses to the client using Server-Sent Events (SSE).
      */
-    @GetMapping(value = "/stream/{chatId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> stream(@PathVariable String chatId, @RequestParam String userPrompt) {
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> stream(@RequestParam(required = false) String chatId, @RequestParam String userPrompt) {
         log.info("Starting SSE stream for chatId={} with user prompt: {}", chatId, userPrompt);
         return chatService.stream(chatId, userPrompt);
     }

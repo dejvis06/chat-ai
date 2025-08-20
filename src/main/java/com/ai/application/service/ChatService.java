@@ -5,6 +5,7 @@ import com.ai.application.dto.ChatMessageDto;
 import com.ai.domain.entity.Chat;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.PageMeta;
+import com.ai.infrastructure.metadata.MessageMetadataAppender;
 import com.ai.infrastructure.repository.ChatRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,21 +33,25 @@ public class ChatService {
     private final ChatClient chatNameGeneratorClient;
     private final ChatMemory chatMemory;
     private final ChatRepository<? extends Chat> chatRepository;
+    private final MessageMetadataAppender messageMetadataAppender;
     private final ObjectMapper objectMapper;
 
-    public static final String CHAT_CREATED = "chat_created";
+    public static final String CHAT_CREATED = "CHAT_CREATED";
     public static final String END_STREAM = "END_STREAM";
 
     public ChatService(
             ChatClient openAiChatClient,
             ChatClient chatNameGeneratorClient,
             ChatMemory chatMemory,
-            ChatRepository<? extends Chat> chatRepository, ObjectMapper objectMapper
+            ChatRepository<? extends Chat> chatRepository,
+            MessageMetadataAppender messageMetadataAppender,
+            ObjectMapper objectMapper
     ) {
         this.openAiChatClient = openAiChatClient;
         this.chatNameGeneratorClient = chatNameGeneratorClient;
         this.chatMemory = chatMemory;
         this.chatRepository = chatRepository;
+        this.messageMetadataAppender = messageMetadataAppender;
         this.objectMapper = objectMapper;
     }
 
@@ -78,7 +83,13 @@ public class ChatService {
                 ? Flux.just(ServerSentEvent.builder(finalChatId).event(CHAT_CREATED).build())
                 : Flux.empty();
 
-        chatMemory.add(finalChatId, new UserMessage(userMessage));
+        chatMemory.add(
+                finalChatId,
+                UserMessage.builder()
+                        .text(userMessage)
+                        .metadata(messageMetadataAppender.appendMetadata(Map.of()))
+                        .build()
+        );
         log.info("User message added to chat memory for chatId={}", finalChatId);
 
         StringBuilder assistantResponse = new StringBuilder();
@@ -103,7 +114,13 @@ public class ChatService {
                             log.info("Streaming complete");
 
                             // Add full assistant response
-                            chatMemory.add(finalChatId, new AssistantMessage(assistantResponse.toString()));
+                            chatMemory.add(
+                                    finalChatId,
+                                    new AssistantMessage(
+                                            assistantResponse.toString(),
+                                            messageMetadataAppender.appendMetadata(Map.of())
+                                    )
+                            );
                             log.info("Assistant response saved to chat memory for chatId={}", finalChatId);
 
                             return Flux.just(

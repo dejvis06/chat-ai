@@ -1,20 +1,25 @@
+app:
+  cassandra:
+    enabled: true
+
 spring:
   ai:
     openai:
       api-key:
-
   cassandra:
       contactPoints: 127.0.0.1
       port: 9042
       localDatacenter: datacenter1
       username: cassandra
       password: cassandra
+      keyspace-name: spring_ai
 
   flyway:
     enabled: true
     url: jdbc:cassandra://127.0.0.1:9042?localdatacenter=datacenter1
     user: cassandra
     password: cassandra
-    default-schema: spring
     locations: classpath:db/migration
     sql-migration-suffixes: cql   # pick up .cql files
+    connect-retries: 30            # give Cassandra time to boot
+    connect-retries-interval: 2s

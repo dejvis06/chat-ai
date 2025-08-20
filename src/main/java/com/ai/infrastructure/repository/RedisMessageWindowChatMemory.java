@@ -54,7 +54,7 @@ public class RedisMessageWindowChatMemory<T extends Chat> implements ChatMemory 
 
     public static final class Builder<T extends Chat> {
         private ChatRepository<T> chatRepository;
-        private int maxMessages = 20;
+        private int maxMessages = DEFAULT_MAX_MESSAGES;
 
         private Builder() {
         }
