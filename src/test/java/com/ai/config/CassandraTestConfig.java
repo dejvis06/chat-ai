@@ -1,5 +1,7 @@
 package com.ai.config;
 
+import com.ai.infrastructure.metadata.CassandraMessageMetadataAppender;
+import com.ai.infrastructure.metadata.MessageMetadataAppender;
 import com.datastax.oss.driver.api.core.CqlSession;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -29,5 +31,10 @@ public class CassandraTestConfig {
                 .withLocalDatacenter("datacenter1")
                 .withKeyspace(KEYSPACE)
                 .build();
+    }
+
+    @Bean
+    MessageMetadataAppender messageMetadataAppender() {
+        return new CassandraMessageMetadataAppender();
     }
 }

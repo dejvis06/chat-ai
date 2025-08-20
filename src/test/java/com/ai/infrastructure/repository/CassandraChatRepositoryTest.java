@@ -1,13 +1,11 @@
 package com.ai.infrastructure.repository;
 
-import com.ai.config.CassandraTestConfig;
+import com.ai.BaseTest;
 import com.ai.domain.entity.NoSqlChat;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.CursorMeta;
 import com.ai.domain.model.pagination.OffsetMeta;
 import com.ai.domain.model.pagination.PageMeta;
-import com.ai.infrastructure.config.ChatClientConfig;
-import com.ai.infrastructure.config.ChatMemoryConfig;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -15,8 +13,6 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.cassandra.core.cql.CqlTemplate;
 
 import java.time.Instant;
@@ -28,9 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest
-@Import({CassandraTestConfig.class, ChatClientConfig.class, ChatMemoryConfig.class})
-class CassandraChatRepositoryIT {
+class CassandraChatRepositoryTest extends BaseTest {
 
     @Autowired
     CassandraChatMemoryRepository chatRepository;
