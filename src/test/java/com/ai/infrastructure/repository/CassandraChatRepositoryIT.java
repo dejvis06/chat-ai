@@ -4,6 +4,8 @@ import com.ai.config.CassandraTestConfig;
 import com.ai.domain.entity.NoSqlChat;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.CursorMeta;
+import com.ai.domain.model.pagination.OffsetMeta;
+import com.ai.domain.model.pagination.PageMeta;
 import com.ai.infrastructure.config.ChatClientConfig;
 import com.ai.infrastructure.config.ChatMemoryConfig;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
@@ -19,7 +21,6 @@ import org.springframework.data.cassandra.core.cql.CqlTemplate;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -30,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @Import({CassandraTestConfig.class, ChatClientConfig.class, ChatMemoryConfig.class})
 class CassandraChatRepositoryIT {
-
 
     @Autowired
     CassandraChatMemoryRepository chatRepository;
@@ -337,5 +337,15 @@ class CassandraChatRepositoryIT {
         ChatPage page4 = chatRepository.findByConversationId(chatId, page3.pageMeta());
         assertThat(page4.messages()).hasSize(1);
         assertThat(page4.messages().get(0).content()).isEqualTo("Message-1");
+    }
+
+    @Test
+    void shouldThrowWhenPageMetaIsNotCursorMeta() {
+        String chatId = "s1";
+        PageMeta wrongMeta = new OffsetMeta(0, 10, true); // not CursorMeta
+
+        assertThatThrownBy(() -> chatRepository.findByConversationId(chatId, wrongMeta))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Expected CursorMeta but got OffsetMeta");
     }
 }
