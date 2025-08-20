@@ -301,7 +301,7 @@ class CassandraChatRepositoryTest extends BaseTest {
                             "VALUES (?, ?, ?, ?)",
                     chatId,
                     Instant.ofEpochMilli(base + (i * 1000L)),   // +1 second each
-                    "USER",
+                    "user",
                     "Message-" + i
             );
         }
@@ -330,7 +330,7 @@ class CassandraChatRepositoryTest extends BaseTest {
         // --- Page 4 ---
         ChatPage page4 = chatRepository.findByConversationId(chatId, page3.pageMeta());
         assertThat(page4.messages()).hasSize(1);
-        assertThat(page4.messages().get(0).content()).isEqualTo("Message-1");
+        assertThat(page4.messages().getFirst().content()).isEqualTo("Message-1");
     }
 
     @Test
