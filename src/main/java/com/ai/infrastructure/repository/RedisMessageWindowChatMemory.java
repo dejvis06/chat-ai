@@ -45,7 +45,7 @@ public class RedisMessageWindowChatMemory<T extends Chat> implements ChatMemory 
     @Override
     public void clear(String conversationId) {
         Assert.notNull(conversationId, "conversationId cannot be null or empty");
-        this.chatRepository.deleteByConversationId(conversationId);
+        this.chatRepository.deleteById(conversationId);
     }
 
     public static <T extends Chat> Builder<T> builder() {

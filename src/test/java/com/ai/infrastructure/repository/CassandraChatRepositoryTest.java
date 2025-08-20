@@ -7,13 +7,11 @@ import com.ai.domain.model.pagination.CursorMeta;
 import com.ai.domain.model.pagination.OffsetMeta;
 import com.ai.domain.model.pagination.PageMeta;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.cassandra.core.cql.CqlTemplate;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -28,16 +26,6 @@ class CassandraChatRepositoryTest extends BaseTest {
 
     @Autowired
     CassandraChatMemoryRepository chatRepository;
-
-    @Autowired
-    CqlTemplate cqlTemplate;
-
-    @AfterEach
-    void cleanUp() {
-        cqlTemplate.execute("TRUNCATE ai_chat_message");
-        cqlTemplate.execute("TRUNCATE ai_chat_memory");
-        cqlTemplate.execute("TRUNCATE chats_by_created");
-    }
 
     @Test
     void saveChat_shouldPersistAndBeRetrievable() {

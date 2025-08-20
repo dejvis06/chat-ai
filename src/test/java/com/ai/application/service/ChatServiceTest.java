@@ -25,16 +25,6 @@ class ChatServiceTest extends BaseTest {
     @Autowired
     ChatService chatService;
 
-    @Autowired
-    CqlTemplate cqlTemplate;
-
-    @AfterEach
-    void cleanUp() {
-        cqlTemplate.execute("TRUNCATE ai_chat_message");
-        cqlTemplate.execute("TRUNCATE ai_chat_memory");
-        cqlTemplate.execute("TRUNCATE chats_by_created");
-    }
-
     @Test
     void stream_shouldReturnEventsFromRealCassandra() {
         List<ServerSentEvent<String>> events =
