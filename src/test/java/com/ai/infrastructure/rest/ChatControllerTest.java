@@ -1,14 +1,15 @@
-package com.ai.application.service;
+package com.ai.infrastructure.rest;
 
 import com.ai.BaseTest;
 import com.ai.application.dto.ChatDto;
 import com.ai.application.dto.ChatMessageDto;
+import com.ai.application.service.ChatService;
 import com.ai.domain.model.pagination.ChatPage;
 import com.ai.domain.model.pagination.CursorMeta;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 
 import java.time.Instant;
@@ -17,16 +18,15 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-class ChatServiceTest extends BaseTest {
+class ChatControllerTest extends BaseTest {
 
     @Autowired
-    ChatService chatService;
+    ChatController chatController;
 
     @Test
     void stream_shouldReturnEventsFromRealCassandra() {
         List<ServerSentEvent<String>> events =
-                chatService.stream(null, "hi")
+                chatController.stream(null, "hi")
                         .collectList()   // gather all emitted SSEs
                         .block();        // wait for completion
 
@@ -36,61 +36,68 @@ class ChatServiceTest extends BaseTest {
     }
 
     @Test
-    void getChatHistory_shouldReturnMessagesInDescendingOrder() {
-        String chatId = "chat-123";
+    void getChatHistory_returnsDescendingMessages() {
+        String chatId = "s1";
+        long base = System.currentTimeMillis();
 
-        // Insert 2 messages with different timestamps
-        Instant now = Instant.now();
+        // seed ai_chat_message with +1s timestamps
         cqlTemplate.execute(
                 "INSERT INTO ai_chat_message (session_id, msg_timestamp, msg_type, msg_content) VALUES (?, ?, ?, ?)",
-                chatId, now, "user", "Hello"
+                chatId, Instant.ofEpochMilli(base + 1000), "user", "Message-1"
         );
         cqlTemplate.execute(
                 "INSERT INTO ai_chat_message (session_id, msg_timestamp, msg_type, msg_content) VALUES (?, ?, ?, ?)",
-                chatId, now.plusSeconds(1), "assistant", "Hi there!"
+                chatId, Instant.ofEpochMilli(base + 2000), "assistant", "Message-2"
+        );
+        cqlTemplate.execute(
+                "INSERT INTO ai_chat_message (session_id, msg_timestamp, msg_type, msg_content) VALUES (?, ?, ?, ?)",
+                chatId, Instant.ofEpochMilli(base + 3000), "user", "Message-3"
         );
 
-        // Call service
-        List<ChatMessageDto> history = chatService.getChatHistory(chatId);
+        // call controller directly
+        List<ChatMessageDto> result = chatController.getChatHistory(chatId);
 
-        // Assert
-        assertThat(history).hasSize(2);
-        assertThat(history.get(0).content()).isEqualTo("Hi there!"); // newest first
-        assertThat(history.get(1).content()).isEqualTo("Hello");
+        // assert messages come back DESC by timestamp
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).content()).isEqualTo("Message-3");
+        assertThat(result.get(1).content()).isEqualTo("Message-2");
+        assertThat(result.get(2).content()).isEqualTo("Message-1");
     }
 
     @Test
-    void findAll_shouldReturnChatsOrderedByCreatedAtDesc() {
-        // seed
+    void findAllChats_returnsChatsInDescOrder() {
         String s1 = "s1";
         String s2 = "s2";
         long now = System.currentTimeMillis();
 
-        UUID t1 = Uuids.startOf(now);             // older
-        UUID t2 = Uuids.startOf(now + 1000);      // newer
+        UUID older = Uuids.startOf(now);          // older
+        UUID newer = Uuids.startOf(now + 1000L);  // newer
 
+        // seed chats_by_created (bucket='all')
         cqlTemplate.execute(
                 "INSERT INTO chats_by_created (bucket, created_at, session_id, session_name) VALUES ('all', ?, ?, ?)",
-                t1, s1, "First Chat"
+                older, s1, "First Chat"
         );
         cqlTemplate.execute(
                 "INSERT INTO chats_by_created (bucket, created_at, session_id, session_name) VALUES ('all', ?, ?, ?)",
-                t2, s2, "Second Chat"
+                newer, s2, "Second Chat"
         );
 
-        // act
-        List<ChatDto> result = chatService.findAll();
+        // call controller
+        ResponseEntity<List<ChatDto>> resp = chatController.findAllChats();
+        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
 
-        // assert
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).id()).isEqualTo(s2);
-        assertThat(result.get(0).name()).isEqualTo("Second Chat");
-        assertThat(result.get(1).id()).isEqualTo(s1);
-        assertThat(result.get(1).name()).isEqualTo("First Chat");
+        List<ChatDto> body = resp.getBody();
+        assertThat(body).hasSize(2);
+        // DESC by created_at -> newer first
+        assertThat(body.get(0).id()).isEqualTo(s2);
+        assertThat(body.get(0).name()).isEqualTo("Second Chat");
+        assertThat(body.get(1).id()).isEqualTo(s1);
+        assertThat(body.get(1).name()).isEqualTo("First Chat");
     }
 
     @Test
-    void shouldReturnPaginatedMessagesByConversationId() {
+    void shouldReturnPaginatedMessagesFromController() {
         String chatId = "s1";
 
         // Insert 10 messages, each with +1s timestamp
@@ -106,28 +113,36 @@ class ChatServiceTest extends BaseTest {
         }
 
         // --- Page 1 ---
-        ChatPage page1 = chatService.findMessagesByChatId(chatId, new CursorMeta(null, 3));
+        ResponseEntity<ChatPage> resp1 =
+                chatController.findMessagesByChatId(new CursorMeta(null, 3), chatId);
+        ChatPage page1 = resp1.getBody();
         assertThat(page1.messages()).hasSize(3);
-        assertThat(page1.messages().get(0).content()).isEqualTo("Message-10"); // DESC by timestamp
+        assertThat(page1.messages().get(0).content()).isEqualTo("Message-10");
         assertThat(page1.messages().get(1).content()).isEqualTo("Message-9");
         assertThat(page1.messages().get(2).content()).isEqualTo("Message-8");
 
         // --- Page 2 ---
-        ChatPage page2 = chatService.findMessagesByChatId(chatId, page1.pageMeta());
+        ResponseEntity<ChatPage> resp2 =
+                chatController.findMessagesByChatId(page1.pageMeta(), chatId);
+        ChatPage page2 = resp2.getBody();
         assertThat(page2.messages()).hasSize(3);
         assertThat(page2.messages().get(0).content()).isEqualTo("Message-7");
         assertThat(page2.messages().get(1).content()).isEqualTo("Message-6");
         assertThat(page2.messages().get(2).content()).isEqualTo("Message-5");
 
         // --- Page 3 ---
-        ChatPage page3 = chatService.findMessagesByChatId(chatId, page2.pageMeta());
+        ResponseEntity<ChatPage> resp3 =
+                chatController.findMessagesByChatId(page2.pageMeta(), chatId);
+        ChatPage page3 = resp3.getBody();
         assertThat(page3.messages()).hasSize(3);
         assertThat(page3.messages().get(0).content()).isEqualTo("Message-4");
         assertThat(page3.messages().get(1).content()).isEqualTo("Message-3");
         assertThat(page3.messages().get(2).content()).isEqualTo("Message-2");
 
         // --- Page 4 ---
-        ChatPage page4 = chatService.findMessagesByChatId(chatId, page3.pageMeta());
+        ResponseEntity<ChatPage> resp4 =
+                chatController.findMessagesByChatId(page3.pageMeta(), chatId);
+        ChatPage page4 = resp4.getBody();
         assertThat(page4.messages()).hasSize(1);
         assertThat(page4.messages().getFirst().content()).isEqualTo("Message-1");
     }

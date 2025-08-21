@@ -39,7 +39,7 @@ public class RedisMessageWindowChatMemory<T extends Chat> implements ChatMemory 
     public List<Message> get(String conversationId) {
         Assert.notNull(conversationId, "conversationId cannot be null");
         // TODO replace with: get from redis
-        return this.chatRepository.findLastNByConversationId(conversationId, maxMessages);
+        return this.chatRepository.findByConversationId(conversationId);
     }
 
     @Override
